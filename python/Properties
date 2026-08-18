@@ -1,0 +1,7 @@
+sonar.projectKey=flask-devops-lab
+sonar.projectName=Flask DevOps Lab
+sonar.sources=.
+sonar.inclusions=app.py
+sonar.tests=.
+sonar.test.inclusions=test_app.py
+sonar.python.coverage.reportPaths=coverage.xml

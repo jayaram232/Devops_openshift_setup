@@ -1,0 +1,73 @@
+---
+- name: Configure Jenkins Host Tools (Docker, Python, SonarScanner)
+  hosts: jenkins_server
+  become: true
+  vars:
+    sonar_scanner_version: "6.2.1.4610" # SonarScanner CLI release
+    sonar_scanner_dir: "/opt/sonar-scanner"
+
+  tasks:
+    - name: Install system packages
+      dnf:
+        name:
+          - docker
+          - python3-pip
+          - git
+          - unzip
+          - tar
+        state: present
+
+    - name: Ensure Docker service is enabled and running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: true
+
+    - name: Download SonarScanner CLI
+      get_url:
+        url: "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-{{ sonar_scanner_version }}-linux-x64.zip"
+        dest: "/tmp/sonar-scanner.zip"
+        mode: '0644'
+
+    - name: Create destination directory for SonarScanner
+      file:
+        path: "{{ sonar_scanner_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Extract SonarScanner CLI
+      unarchive:
+        src: "/tmp/sonar-scanner.zip"
+        dest: "/opt"
+        remote_src: true
+
+    - name: Move extracted directory to standard path
+      shell: |
+        if [ -d "/opt/sonar-scanner-{{ sonar_scanner_version }}-linux-x64" ]; then
+          rm -rf {{ sonar_scanner_dir }}
+          mv /opt/sonar-scanner-{{ sonar_scanner_version }}-linux-x64 {{ sonar_scanner_dir }}
+        fi
+      args:
+        creates: "{{ sonar_scanner_dir }}/bin/sonar-scanner"
+
+    - name: Create symlink for sonar-scanner binary
+      file:
+        src: "{{ sonar_scanner_dir }}/bin/sonar-scanner"
+        dest: "/usr/local/bin/sonar-scanner"
+        state: link
+
+    - name: Clean up downloaded archive
+      file:
+        path: "/tmp/sonar-scanner.zip"
+        state: absent
+
+    - name: Restart Jenkins to apply docker group permissions
+      systemd:
+        name: jenkins
+        state: restarted
