@@ -70,6 +70,15 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Jenkins UI"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -93,12 +102,19 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
+  resource "aws_key_pair" "jenkins_key" {
+    key_name   = "jenkins-lab-key"
+    public_key = file("~/.ssh/id_rsa.pub")
+}
+
+
 # 5. EC2 Instance
 resource "aws_instance" "web" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+  key_name               = aws_key_pair.jenkins_key.key_name
 
   tags = {
     Name = "lab-ec2-instance"
@@ -108,4 +124,9 @@ resource "aws_instance" "web" {
 output "instance_id" {
   value       = aws_instance.web.id
   description = "The ID of the EC2 instance"
+}
+
+output "jenkins_public_ip" {
+  value       = aws_instance.web.public_ip
+  description = "The public IP of the Jenkins server"
 }
